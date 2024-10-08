@@ -12,6 +12,8 @@ builder.Services.AddHttpClient<DictionaryService>();
 
 builder.Services.AddScoped<DictionaryService>();
 
+builder.Services.AddScoped<KeyHandler>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

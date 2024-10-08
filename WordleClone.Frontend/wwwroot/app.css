@@ -118,41 +118,6 @@ h1 {
     border: ridge firebrick;
 }
 
-.keyboard {
-    container-type: inline-size;
-    width: min(50rem, 100%);
-    margin: 0 auto;
-    font-size: clamp(0.9rem, 4cqi, 2rem);
-    contain: paint;
-
-    & .row {
-        display: flex;
-        justify-content: center;
-        gap: 0.25em;
-        margin-block: 0.25em;
-    }
-
-    & .key {
-        width: min(2em, 100%);
-        padding: 0.6em 0;
-        font: inherit;
-        font-family: Arial, Roboto, serif;
-        font-size: inherit;
-        font-weight: 600;
-        border-radius: 10px;
-        background: #A4A9AD;
-        color: #000;
-    }
-
-    & .small-key {
-        display: grid;
-        place-content: center;
-        min-width: fit-content;
-        padding-inline: 0.5em;
-        font-size: clamp(0.8rem, 2cqi, 1rem);
-    }
-}
-
 button {
     border: 2px outset #3338;
 }

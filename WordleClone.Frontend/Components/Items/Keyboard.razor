@@ -1,0 +1,66 @@
+﻿@using WordleClone.Frontend.Components.Model
+
+@rendermode InteractiveServer
+
+<div class="keyboard" >
+    @for (int rowIndex = 0; rowIndex < keyboardRows.Length; rowIndex++)
+    {
+        <div class="row">
+            @if (rowIndex == 2)
+            {
+                <button type="button" @onclick="() => HandleKey('\n')" class="key small-key">Enter</button>
+            }
+            @foreach (var letter in keyboardRows[rowIndex])
+            {
+                <button type="button" @onclick="() => HandleKey(letter)" class="key @GetKeyClass(letter)">@letter</button>
+            }
+            @if (rowIndex == 2)
+            {
+                <button type="button" @onclick="() => HandleKey('\b')" class="key small-key">DEL</button>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public Dictionary<char, string> KeyColors { get; set; } = [];
+    [Parameter]
+    public EventCallback<char> OnLetterAdded { get; set; }
+    [Parameter]
+    public EventCallback OnCheckWord { get; set; }
+    [Parameter]
+    public EventCallback OnDeleteLetter { get; set; }
+
+    private static readonly char[] topRow = { 'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P' };
+    private static readonly char[] middleRow = { 'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L' };
+    private static readonly char[] bottomRow = { 'Z', 'X', 'C', 'V', 'B', 'N', 'M' };
+    private static readonly char[][] keyboardRows = { topRow, middleRow, bottomRow };
+
+    async Task HandleKey(char key)
+    {
+        if (key == '\b')
+        {
+            await OnDeleteLetter.InvokeAsync();
+        }
+        else if (key == '\n')
+        {
+            await OnCheckWord.InvokeAsync();
+        }
+        else
+        {
+            await OnLetterAdded.InvokeAsync((char)key);
+        }
+    }
+
+    private string GetKeyClass(char letter)
+    {
+        if (letter == '\b'|| letter == '\n')
+        {
+            return "small-key";
+        }
+
+        char checkLetter = char.ToUpper((char)letter);
+        return KeyColors.TryGetValue(checkLetter, out string? colour) ? colour : "neutral";
+    }
+}

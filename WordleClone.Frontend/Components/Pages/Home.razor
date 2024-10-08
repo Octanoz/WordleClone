@@ -3,6 +3,7 @@
 @using WordleClone.Frontend.Components.Services
 
 @inject DictionaryService dictionaryService
+@inject KeyHandler keyHandler
 @inject IJSRuntime JSRuntime
 
 @rendermode InteractiveServer
@@ -14,20 +15,20 @@
 </section>
 
 <section id="main-wrapper">
-    <div class="game" @onkeydown="@(HandleKeyDown)" tabindex="0">
-    <ul class="attempts-list">
-            @for (int attemptIndex = 0; attemptIndex < guesses.Length; attemptIndex++)
-            {
-                <li class="attempt">
-                    @for (int i = 0; i < 5; i++)
-                    {
-                        <div class="letter-square @(currentGuess > attemptIndex ? "checking" : "")" style="--d: @i; background: var(@colors[attemptIndex][i]);">
-                            <p class="input-letter">@guesses[attemptIndex][i]</p>
-                        </div>
-                    }
-                </li>
-            }
-    </ul>
+    <div class="game" tabindex="0" @onkeydown="@(HandleKeyDown)" >
+        <ul class="attempts-list">
+                @for (int attemptIndex = 0; attemptIndex < guesses.Length; attemptIndex++)
+                {
+                    <li class="attempt">
+                        @for (int i = 0; i < 5; i++)
+                        {
+                            <div class="letter-square @(currentGuess > attemptIndex ? "checking" : "")" style="--d: @i; background: var(@colors[attemptIndex][i]);">
+                                <p class="input-letter">@guesses[attemptIndex][i]</p>
+                            </div>
+                        }
+                    </li>
+                }
+        </ul>
     </div>
     @if (currentWordDefinition is not null)
     {
@@ -45,28 +46,7 @@
             <p class="definition">Word was not found. Delete some letters and you can try again on the same attempt.</p>
         </section>
     }
-    <div class="keyboard">
-        <div class="row top-row">
-            @foreach (var letter in topRow)
-            {
-                <button type="button" @onclick="() => AddLetter(letter)" class="key">@letter</button>
-            }
-        </div>
-        <div class="row middle-row">
-            @foreach (var letter in middleRow)
-            {
-                <button type="button" @onclick="() => AddLetter(letter)" class="key">@letter</button>
-            }
-        </div>
-        <div class="row bottom-row">
-            <button type="button" @onclick="() => CheckWord(guesses[currentGuess])" class="key small-key">ENTER</button>
-            @foreach (var letter in bottomRow)
-            {
-                <button type="button" @onclick="() => AddLetter(letter)" class="key">@letter</button>
-            }
-            <button type="button" @onclick="RemoveLetter" class="key small-key">DEL</button>
-        </div>
-    </div>
+    <Keyboard KeyColors="keyColors" OnLetterAdded="AddLetter" OnCheckWord="() => CheckWord(guesses[currentGuess])" OnDeleteLetter="RemoveLetter" />
 </section>
 
 <script>
@@ -78,7 +58,10 @@
     static readonly char[] topRow = ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'];
     static readonly char[] middleRow = ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'];
     static readonly char[] bottomRow = ['Z', 'X', 'C', 'V', 'B', 'N', 'M'];
+    static readonly char[][] keyboardRows = [ topRow, middleRow, bottomRow ];
     static readonly string[] wordsArray = ["INNER", "BONUS", "RIDER", "LUNAR", "FLOWS"];
+
+    Dictionary<char, string> keyColors = [];
 
     WordDefinition? currentWordDefinition;
     static string? word;
@@ -98,27 +81,12 @@
         }
 
         currentWordDefinition = await dictionaryService.GetWordDefinition("guess");
-    }
 
-    private async Task HandleKeyDown(KeyboardEventArgs e)
-    {
-        switch (e.Key)
+        foreach (var key in keyboardRows.SelectMany(r => r))
         {
-            case "Backspace":
-                RemoveLetter();
-                break;
-            case "Enter":
-                await CheckWord(guesses[currentGuess]);
-                break;
-            default:
-                if (e.Key.Length == 1 && Char.IsLetter(e.Key[0]))
-                {
-                    AddLetter(Char.ToUpper(e.Key[0]));
-                }
-                break;
+            keyColors[key] = "neutral";
         }
     }
-
 
     void AddLetter(char c)
     {
@@ -126,6 +94,7 @@
         if (emptyIndex >= 0)
         {
             guesses[currentGuess][emptyIndex] = c;
+            StateHasChanged();
         }
     }
 
@@ -135,10 +104,12 @@
         if (emptyIndex > 0)
         {
             guesses[currentGuess][emptyIndex - 1] = ' ';
+            StateHasChanged();
         }
         else if (emptyIndex == -1)
         {
             guesses[currentGuess][4] = ' ';
+            StateHasChanged();
         }
         else return;
     }
@@ -165,6 +136,7 @@
             if (guess[i] == target[i])
             {
                 currentColors[i] = "--green";
+                keyColors[guess[i]] = "right-location";
                 targetLetters[guess[i]]--;
             }
         }
@@ -172,18 +144,50 @@
         for (int i = 0; i < 5; i++)
         {
             char currentLetter = guess[i];
-            if (currentColors[i] != "--green" && targetLetters.TryGetValue(currentLetter, out int frequency))
+            if (currentColors[i] != "--green" && targetLetters.TryGetValue(currentLetter, out int frequency) && frequency > 0)
             {
-                if (frequency > 0)
+                if (keyColors[currentLetter] != "right-location")
                 {
-                    currentColors[i] = "--yellow";
-                    targetLetters[currentLetter]--;
+                    keyColors[currentLetter] = "letter-guessed";
                 }
+
+                currentColors[i] = "--yellow";
+                targetLetters[currentLetter]--;
             }
         }
 
         colors[currentGuess] = currentColors;
         currentGuess++;
         StateHasChanged();
+    }
+
+    void UpdateKeyColor(char key, string colorClass)
+    {
+        if (keyColors.ContainsKey(key))
+        {
+            keyColors[key] = colorClass;
+        }
+        else
+        {
+            keyColors.Add(key, colorClass);
+        }
+
+        StateHasChanged();
+    }
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Backspace")
+        {
+            RemoveLetter();
+        }
+        else if (e.Key == "Enter")
+        {
+            CheckWord(guesses[currentGuess]);
+        }
+        else if (char.IsLetter(e.Key[0]))
+        {
+            AddLetter(e.Key[0]);
+        }
     }
 }
