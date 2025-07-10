@@ -5,17 +5,16 @@
 @inject DictionaryService dictionaryService
 @inject IJSRuntime JSRuntime
 
-@rendermode InteractiveServer
-
 <PageTitle>Wordle</PageTitle>
 
 <section id="top-bar">
     <h1>Wordle Clone</h1>
+    <button @onclick="ResetGame" class="reset-button">Reset</button>
 </section>
 
 <section id="main-wrapper">
-    <div class="game" @onkeydown="@(HandleKeyDown)" tabindex="0">
-    <ul class="attempts-list">
+    <div class="game" @onkeydown="@(HandleKeyDown)" tabindex="0" @ref="gameElement">
+        <ul class="attempts-list">
             @for (int attemptIndex = 0; attemptIndex < guesses.Length; attemptIndex++)
             {
                 <li class="attempt">
@@ -27,14 +26,14 @@
                     }
                 </li>
             }
-    </ul>
+        </ul>
     </div>
     @if (currentWordDefinition is not null)
     {
         <section class="word-definition">
             <h3>@(currentWordDefinition.Word)</h3>
-            <h5>@(currentWordDefinition.Meanings.First().PartOfSpeech)</h5>
-            <p>@(currentWordDefinition.Meanings.First().Definitions.First().Defined)</p>
+            <h5>@(currentWordDefinition.Meanings[0].PartOfSpeech)</h5>
+            <p>@(currentWordDefinition.Meanings[0].Definitions[0].Defined)</p>
         </section>
     }
     else
@@ -49,30 +48,25 @@
         <div class="row top-row">
             @foreach (var letter in topRow)
             {
-                <button type="button" @onclick="() => AddLetter(letter)" class="key">@letter</button>
+                <button type="button" @onclick="() => AddLetter(letter)" class="key @GetKeyClass(letter)">@letter</button>
             }
         </div>
         <div class="row middle-row">
             @foreach (var letter in middleRow)
             {
-                <button type="button" @onclick="() => AddLetter(letter)" class="key">@letter</button>
+                <button type="button" @onclick="() => AddLetter(letter)" class="key @GetKeyClass(letter)">@letter</button>
             }
         </div>
         <div class="row bottom-row">
             <button type="button" @onclick="() => CheckWord(guesses[currentGuess])" class="key small-key">ENTER</button>
             @foreach (var letter in bottomRow)
             {
-                <button type="button" @onclick="() => AddLetter(letter)" class="key">@letter</button>
+                <button type="button" @onclick="() => AddLetter(letter)" class="key @GetKeyClass(letter)">@letter</button>
             }
             <button type="button" @onclick="RemoveLetter" class="key small-key">DEL</button>
         </div>
     </div>
 </section>
-
-<script>
-    const gameElement = document.querySelector('.game');
-    sleep(1000).then(() => gameElement.focus());
-</script>
 
 @code {
     static readonly char[] topRow = ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'];
@@ -83,12 +77,22 @@
     WordDefinition? currentWordDefinition;
     static string? word;
     static int currentGuess = 0;
-    char[][] guesses = new char[6][];
-    string[][] colors = new string[6][];
+    readonly char[][] guesses = new char[6][];
+    readonly string[][] colors = new string[6][];
+
+    // Dictionary to store the state of each key
+    private Dictionary<char, string> keyStates = new Dictionary<char, string>();
 
     Random random = new Random();
 
+    ElementReference gameElement;
+
     protected override async Task OnInitializedAsync()
+    {
+        await InitializeGame();
+    }
+
+    private async Task InitializeGame()
     {
         word = wordsArray[random.Next(0, wordsArray.Length)];
         for (int i = 0; i < guesses.Length; i++)
@@ -97,7 +101,22 @@
             colors[i] = Enumerable.Repeat("--empty", 5).ToArray();
         }
 
+        // Reset key states
+        foreach (var letter in topRow.Concat(middleRow).Concat(bottomRow))
+        {
+            keyStates[letter] = "";
+        }
+
+        currentGuess = 0;
         currentWordDefinition = await dictionaryService.GetWordDefinition("guess");
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await gameElement.FocusAsync();
+        }
     }
 
     private async Task HandleKeyDown(KeyboardEventArgs e)
@@ -154,7 +173,7 @@
         currentWordDefinition = await dictionaryService.GetWordDefinition(guessedWord);
 
         if (currentWordDefinition is null)
-            return;        
+            return;
 
         string[] currentColors = Enumerable.Repeat("--grey", 5).ToArray();
         char[] target = word.ToCharArray();
@@ -166,6 +185,7 @@
             {
                 currentColors[i] = "--green";
                 targetLetters[guess[i]]--;
+                keyStates[guess[i]] = "green-key"; // Update key state
             }
         }
 
@@ -178,6 +198,24 @@
                 {
                     currentColors[i] = "--yellow";
                     targetLetters[currentLetter]--;
+                    if (keyStates[currentLetter] != "green-key") // Avoid overwriting green key
+                    {
+                        keyStates[currentLetter] = "yellow-key"; // Update key state
+                    }
+                }
+                else
+                {
+                    if (keyStates[currentLetter] != "green-key" && keyStates[currentLetter] != "yellow-key")
+                    {
+                        keyStates[currentLetter] = "grey-key";
+                    }
+                }
+            }
+            else if (currentColors[i] != "--green")
+            {
+                if (keyStates[currentLetter] != "green-key" && keyStates[currentLetter] != "yellow-key")
+                {
+                    keyStates[currentLetter] = "grey-key";
                 }
             }
         }
@@ -185,5 +223,18 @@
         colors[currentGuess] = currentColors;
         currentGuess++;
         StateHasChanged();
+    }
+
+    // Helper function to get the key class based on its state
+    private string GetKeyClass(char letter)
+    {
+        return keyStates.ContainsKey(letter) ? keyStates[letter] : "";
+    }
+
+    private async Task ResetGame()
+    {
+        await InitializeGame();
+        // Optionally refocus the game element after reset
+        await JSRuntime.InvokeVoidAsync("eval", "setTimeout(() => document.querySelector('.game').focus(), 0)");
     }
 }
