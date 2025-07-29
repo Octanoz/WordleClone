@@ -14,29 +14,31 @@ public class DictionaryService(HttpClient httpClient)
             var response = await httpClient.GetStringAsync($"https://api.dictionaryapi.dev/api/v2/entries/en/{word}");
             var wordDefinitions = JsonSerializer.Deserialize<List<WordDefinition>>(response, options);
 
-            return wordDefinitions?.FirstOrDefault() ?? new WordDefinition()
-            {
-                Word = "word not found",
-                Meanings =
-                [
-                    new Meaning()
-                    {
-                        PartOfSpeech = "noun",
-                        Definitions =
-                        [
-                            new Definition()
-                            {
-                                Defined = "word not found"
-                            }
-                        ]
-                    }
-                ]
-            };
+            return wordDefinitions?.FirstOrDefault() ?? FallbackDefinition(word);
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex);
-            return null!;
+            Console.WriteLine($"Error fetching definition: {ex.Message}");
+            return FallbackDefinition(word);
         }
     }
+
+    private static WordDefinition FallbackDefinition(string word) => new()
+    {
+        Word = word,
+        Meanings =
+        [
+            new Meaning
+        {
+            PartOfSpeech = "Unknown",
+            Definitions =
+            [
+                new Definition
+                {
+                    Defined = "Definition not found."
+                }
+            ]
+        }
+        ]
+    };
 }
