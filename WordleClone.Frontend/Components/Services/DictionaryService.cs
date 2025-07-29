@@ -14,7 +14,7 @@ public class DictionaryService(HttpClient httpClient)
             var response = await httpClient.GetStringAsync($"https://api.dictionaryapi.dev/api/v2/entries/en/{word}");
             var wordDefinitions = JsonSerializer.Deserialize<List<WordDefinition>>(response, options);
 
-            return wordDefinitions.FirstOrDefault() ?? new WordDefinition()
+            return wordDefinitions?.FirstOrDefault() ?? new WordDefinition()
             {
                 Word = "word not found",
                 Meanings =

@@ -179,7 +179,7 @@ button:active {
 }
 
 .reset-button {
-    position: fixed;
+    position: absolute;
     top: 1.5rem;
     right: 1rem;
     padding: 8px 12px;

@@ -9,7 +9,7 @@
 
 <section id="top-bar">
     <h1>Wordle Clone</h1>
-    <button @onclick="ResetGame" class="reset-button">Reset</button>
+    <button type="button" @onclick="ResetGame" class="reset-button">Reset</button>
 </section>
 
 <section id="main-wrapper">
@@ -72,18 +72,18 @@
     static readonly char[] topRow = ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'];
     static readonly char[] middleRow = ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'];
     static readonly char[] bottomRow = ['Z', 'X', 'C', 'V', 'B', 'N', 'M'];
-    static readonly string[] wordsArray = ["INNER", "BONUS", "RIDER", "LUNAR", "FLOWS"];
+    static readonly string[] wordsArray = ["INNER", "BONUS", "RIDER", "LUNAR", "FLOWS", "NYMPH", "JUMPY", "CRISP", "PLAZA", "QUART", "QUICK", "SMITE", "KNOLL"];
 
     WordDefinition? currentWordDefinition;
-    static string? word;
-    static int currentGuess = 0;
+    string? word;
+    int currentGuess = 0;
     readonly char[][] guesses = new char[6][];
     readonly string[][] colors = new string[6][];
 
     // Dictionary to store the state of each key
-    private Dictionary<char, string> keyStates = new Dictionary<char, string>();
+    private readonly Dictionary<char, string> keyStates = [];
 
-    Random random = new Random();
+    Random random = new();
 
     ElementReference gameElement;
 
@@ -159,7 +159,6 @@
         {
             guesses[currentGuess][4] = ' ';
         }
-        else return;
     }
 
     async Task CheckWord(char[] guess)
@@ -211,12 +210,9 @@
                     }
                 }
             }
-            else if (currentColors[i] != "--green")
+            else if (currentColors[i] != "--green" && keyStates[currentLetter] != "green-key" && keyStates[currentLetter] != "yellow-key")
             {
-                if (keyStates[currentLetter] != "green-key" && keyStates[currentLetter] != "yellow-key")
-                {
-                    keyStates[currentLetter] = "grey-key";
-                }
+                keyStates[currentLetter] = "grey-key";
             }
         }
 
@@ -234,7 +230,5 @@
     private async Task ResetGame()
     {
         await InitializeGame();
-        // Optionally refocus the game element after reset
-        await JSRuntime.InvokeVoidAsync("eval", "setTimeout(() => document.querySelector('.game').focus(), 0)");
     }
 }
